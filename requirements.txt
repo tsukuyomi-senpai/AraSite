@@ -1,0 +1,3 @@
+ruff
+Flask[dotenv]
+requests
