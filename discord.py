@@ -1,52 +1,70 @@
 import json
-from dataclasses import dataclass, fields
+import re
 from os import getenv
-from typing import Self
 
-import requests
+import httpx
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
-Snowflake = str | int
+TSnowflake = str | int
 
 
-@dataclass(kw_only=True, frozen=True)
-class APIResource:
+class Snowflake(BaseModel):
     id: str
 
-    @classmethod
-    def from_json(cls, data: dict) -> Self:
-        return cls(**{field.name: data[field.name] for field in fields(cls)})
 
-
-@dataclass(kw_only=True, frozen=True)
-class Member(APIResource):
+class User(Snowflake):
     username: str
     global_name: str | None
-    nick: str | None
 
     @property
     def display_name(self) -> str:
-        return self.nick or self.global_name or self.username
+        return self.global_name or self.username
 
 
-@dataclass(kw_only=True, frozen=True)
-class Channel(APIResource):
+class Member(BaseModel):
+    nick: str | None
+    user: User
+
+    @property
+    def display_name(self) -> str:
+        return self.nick or self.user.global_name or self.user.username
+
+
+class Channel(Snowflake):
     name: str
 
 
-@dataclass(kw_only=True, frozen=True)
-class Message(APIResource):
-    content: str
-    mentions: list[Member]
-    mention_channels: list[Channel]
-
-    def clean_content(self) -> str: ...
-
-
-@dataclass(kw_only=True, frozen=True)
-class Role(APIResource):
+class Role(Snowflake):
     name: str
     color: int
+
+
+class Message(Snowflake):
+    content: str
+    mentions: list[User]
+    mention_roles: list[str]
+    mention_channels: list[Channel] = []
+
+    def clean_content(
+        self, members: list[Member], roles: list[Role], channels: list[Channel]
+    ) -> str:
+        transforms = {}
+
+        for i, user in enumerate(self.mentions):
+            transforms[f"<@{user.id}>"] = f"@{members[i].display_name}"
+            transforms[f"<@!{user.id}>"] = f"@{members[i].display_name}"
+
+        for role in roles:
+            transforms[f"<@&{role.id}>"] = f"@{role.name}"
+
+        for channel in channels:
+            transforms[f"<#{channel.id}>"] = f"#{channel.name}"
+
+        def repl(match: re.Match[str]) -> str:
+            return transforms[match[0]]
+
+        return re.sub("|".join(transforms), repl, self.content)
 
 
 def dump_json(data, fname):
@@ -56,38 +74,41 @@ def dump_json(data, fname):
 
 class DiscordClient:
     BASE_URL = "https://discord.com/api/v10"
-    session: requests.Session
+    session: httpx.Client
 
     def __init__(self, token: str):
-        self.session = requests.Session()
-        self.session.headers["Authorization"] = token
+        self.session = httpx.Client(base_url=self.BASE_URL, headers={"Authorization": token})
 
     def _request(self, endpoint: str):
-        return self.session.get(self.BASE_URL + endpoint).json()
+        return self.session.get(endpoint).json()
 
-    def get_channel(self, channel_id: Snowflake) -> Channel:
+    def get_channel(self, channel_id: TSnowflake) -> Channel:
         data = self._request(f"/channels/{channel_id}")
-        return data
+        return Channel(**data)
 
-    def get_channels(self, guild_id: Snowflake) -> list[Channel]:
+    def get_channels(self, guild_id: TSnowflake) -> list[Channel]:
         data = self._request(f"/guilds/{guild_id}/channels")
-        return data
+        return [Channel(**c) for c in data]
 
-    def get_members(self, guild_id: Snowflake):
-        data = self._request(f"/guilds/{guild_id}/members")
-        return data
-
-    def get_member(self, guild_id: Snowflake, user_id: Snowflake) -> Member:
+    def get_member(self, guild_id: TSnowflake, user_id: TSnowflake) -> Member:
         data = self._request(f"/guilds/{guild_id}/members/{user_id}")
-        return Member.from_json(data["user"] | data)
+        return Member(**data)
 
-    def get_messages(self, channel_id: Snowflake):
+    def get_members(self, guild_id: TSnowflake) -> list[Member]:
+        data = self._request(f"/guilds/{guild_id}/members")
+        return [Member(**m) for m in data]
+
+    def get_messages(self, channel_id: TSnowflake) -> list[Message]:
         data = self._request(f"/channels/{channel_id}/messages")
-        return data
+        return [Message(**m) for m in data]
 
-    def get_roles(self, guild_id: Snowflake) -> list[Role]:
-        roles = self._request(f"/guilds/{guild_id}/roles")
-        return [Role.from_json(data) for data in roles]
+    def get_roles(self, guild_id: TSnowflake) -> list[Role]:
+        data = self._request(f"/guilds/{guild_id}/roles")
+        return [Role(**r) for r in data]
+
+    def get_user(self, user_id: TSnowflake) -> User:
+        data = self._request(f"/users/{user_id}")
+        return User(**data)
 
 
 # l1    676889696302792774
@@ -95,3 +116,6 @@ class DiscordClient:
 if __name__ == "__main__":
     load_dotenv()
     client = DiscordClient(getenv("TOKEN"))
+    m = client.get_member(676889696302792774, 337343326095409152)
+    u = client.get_user(337343326095409152)
+    print(m.user == u)

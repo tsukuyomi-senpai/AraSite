@@ -48,7 +48,16 @@
 
             <main class="px-3">
                 <h1>Our Rules</h1>
-                <h2>{{ string1 }}</h2>
+                {% set intro, heading, rules = rules.partition("\n\n📜Server rules\n") %}
+                <h2>{{ intro }}</h2>
+                <h2>
+                    <ol>
+                        {% for rule in rules.split("\n") %}
+                        <li>{{ rule.partition(" ")[2] }}</li>
+                        {% endfor %}
+                    </ol>
+                </h2>
+
                 <!-- <img src="https://discord.com/emojis/{{ emoji_id }}.png"></img> -->
                 <p class="lead">
                     <a href="https://discord.gg/lobby1" class="btn btn-lg btn-secondary fw-bold border-white bg-white">Join Us</a>
