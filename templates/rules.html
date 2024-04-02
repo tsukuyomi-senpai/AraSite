@@ -11,31 +11,18 @@
         <meta name="theme-color" content="#7952b3" />
 
         <style>
-            #back {
+            .parallax {
                 background-image: url("./static/background.jpg");
-                background-repeat: no-repeat;
+                height: 600px;
+                background-repeat: repeat;
                 background-attachment: fixed;
-                background-size: 100% 100%;
-                background-blend-mode: overlay;
-            }
-
-            .bd-placeholder-img {
-                font-size: 1.125rem;
-                text-anchor: middle;
-                -webkit-user-select: none;
-                -moz-user-select: none;
-                user-select: none;
-            }
-
-            @media (min-width: 768px) {
-                .bd-placeholder-img-lg {
-                    font-size: 3.5rem;
-                }
+                background-size: cover;
+                background-position: center;
             }
         </style>
     </head>
-    <body class="d-flex h-100 text-center text-white bg-dark" id="back">
-        <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
+    <body class="d-flex h-auto text-white parallax">
+        <div class="cover-container d-flex w-100 h-auto p-3 mx-auto flex-column">
             <header class="mb-auto">
                 <div>
                     <h3 class="float-md-start mb-0"></h3>
@@ -46,25 +33,30 @@
                 </div>
             </header>
 
-            <main class="px-3">
-                <h1>Our Rules</h1>
-                {% set intro, heading, rules = rules.partition("\n\n📜Server rules\n") %}
-                <h2>{{ intro }}</h2>
-                <h2>
-                    <ol>
-                        {% for rule in rules.split("\n") %}
-                        <li>{{ rule.partition(" ")[2] }}</li>
-                        {% endfor %}
-                    </ol>
-                </h2>
+            <h1 class="text-center">Our Rules</h1>
+            {% set intro, heading, rules = rules.partition("\n\n📜Server rules\n") %}
+            <h2 class="text-center">{{ intro }}</h2>
 
+            <ol>
+                {% for rule in rules.split("\n") %}
+                <li>{{ rule.partition(" ")[2] }}</li>
+                {% endfor %}
+            </ol>
+
+            <ol>
+                {% for rule in rrules.split("\n") %}
+                <li>{{ rule.partition(" ")[2] }}</li>
+                {% endfor %}
+            </ol>
+
+            <main class="px-3">
                 <!-- <img src="https://discord.com/emojis/{{ emoji_id }}.png"></img> -->
-                <p class="lead">
-                    <a href="https://discord.gg/lobby1" class="btn btn-lg btn-secondary fw-bold border-white bg-white">Join Us</a>
+                <p class="lead text-center">
+                    <a href="https://discord.gg/lobby1" class="btn btn-lg btn-secondary center fw-bold border-white bg-white">Still join Us</a>
                 </p>
             </main>
 
-            <footer class="mt-auto text-white-50">
+            <footer class="mt-auto text-center text-white-50">
                 <p>Provided by Sergon23</p>
             </footer>
         </div>
